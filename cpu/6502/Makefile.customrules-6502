@@ -13,6 +13,11 @@ CUSTOM_RULE_LINK = 1
 	$(TRACE_LD)
 	$(Q)$(LD) -o $@ $(LDFLAGS) -u _main $^ $(TARGET).lib
 
+CUSTOM_RULE_S_TO_OBJECTDIR_O = 1
+$(OBJECTDIR)/%.o: %.S | $(OBJECTDIR)
+	$(TRACE_AS)
+	$(Q)$(AS) $(ASFLAGS) -o $@ $<
+
 %.o: %.S
 	$(TRACE_AS)
 	$(Q)$(AS) $(ASFLAGS) -o $@ $<

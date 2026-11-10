@@ -35,25 +35,41 @@
 #include <apple2.h>
 
 #include "contiki.h"
-#include "sys/log.h"
 
 /* The enhanced Apple//e doesn't have a hardware clock whatsoever. Therefore the
  * cc65 C-library for this target doesn't include an implementation of clock().
  */
 
-static unsigned char tick = 14;
+enum {
+  TICK_LOOP,
+  TICK_VBL_EDGE,
+  TICK_VERTCNT
+};
+
+static unsigned char tick_source;
+static unsigned char prev;
+static unsigned char frames;
 static clock_time_t time;
 
+/*-----------------------------------------------------------------------------------*/
+static void
+count_frame(void)
+{
+  if(++frames == 15) {
+    frames = 0;
+    ++time;
+  }
+}
 /*-----------------------------------------------------------------------------------*/
 void
 clock_init(void)
 {
-  if(get_ostype() >= APPLE_IIGS) {
-    if(*(signed char *)0xC036 < 0) {
-      /* 5 / 14 = 1.0MHz / 2.8MHz */
-      tick = 5;
-      log_message("Assuming 2.8 MHz ...", "");
-    }
+  unsigned char type = get_ostype();
+
+  if(type >= APPLE_IIGS) {
+    tick_source = TICK_VERTCNT;
+  } else if(type < APPLE_IIC || type > APPLE_IICPLUS) {
+    tick_source = TICK_VBL_EDGE;
   }
 }
 /*-----------------------------------------------------------------------------------*/
@@ -61,11 +77,36 @@ void
 clock_update(void)
 {
   static unsigned int count;
+  unsigned char sample;
 
-  count += tick;
-  if(count > 1000) {
-    count = 0;
-    ++time;
+  switch(tick_source) {
+  case TICK_VERTCNT:
+    /* The IIgs VBL-high phase is too short to sample reliably, the line
+     * counter wraps once per frame and can't be missed. */
+    sample = *(unsigned char *)0xC02E;
+    if(sample < prev) {
+      count_frame();
+    }
+    prev = sample;
+    break;
+
+  case TICK_VBL_EDGE:
+    /* RDVBL bit 7 is 1 outside blanking, so the low-to-high edge comes once
+     * per frame. */
+    sample = *(unsigned char *)0xC019 & 0x80;
+    if(sample && !prev) {
+      count_frame();
+    }
+    prev = sample;
+    break;
+
+  default:
+    count += 14;
+    if(count > 1000) {
+      count = 0;
+      ++time;
+    }
+    break;
   }
 }
 /*-----------------------------------------------------------------------------------*/

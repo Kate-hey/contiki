@@ -102,6 +102,7 @@ main(void)
 
   SLIP_INIT();
 
+  clock_init();
   process_init();
   procinit_init();
   autostart_start(autostart_processes);
