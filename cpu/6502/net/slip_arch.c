@@ -43,6 +43,8 @@
 #include "dev/slip.h"
 
 #if WITH_SLIP
+
+void slip_arch_poll(void);
 /*---------------------------------------------------------------------------*/
 void
 slip_arch_init(unsigned long ubr)
